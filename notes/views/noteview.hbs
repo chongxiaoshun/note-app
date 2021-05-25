@@ -1,0 +1,191 @@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-xs-12">
+            {{#if note}}<h3 id="notetitle">{{note.title}}</h3>{{/if}}
+            {{#if note}}<div id="notebody">{{note.body}}</div>{{/if}}
+            <p>Key: {{notekey}}</p>
+        </div>
+    </div>
+    {{#if notekey}}
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="btn group">
+                <a class="btn btn-outline-dark" href="/notes/destroy?key={{notekey}}" role="button">Delete</a>
+                <a class="btn btn-outline-dark" href="/notes/edit?key={{notekey}}" role="button">Edit</a>
+                <button type="button" class="btn btn-outline-dark"
+                        data-toggle="modal"
+                        data-target="#notes-comment-modal">Comment</button>
+            </div>
+        </div>
+    </div>
+    {{/if}}
+    <div id="noteMessages">
+        {{#if messages}}
+            {{#each messages}}
+                <div id="note-message-{{id}}" class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{from}}</h5>
+                        <div class="card-test">{{message}}
+                            <small style="display: block">{{timestamp}}</small>
+                        </div>
+                        <button type="button" class="btn btn-primary message-del-button"
+                                data-id="{{id}}"
+                                data-namespace="{{namespace}}"
+                                data-room="{{room}}">Delete</button>
+                    </div>
+                </div>
+            {{/each}}
+        {{/if}}
+    </div>
+</div>
+
+
+
+{{> footerjs}}
+{{#if notekey}}
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        $(document).ready(
+            function () {
+                let socket = io('/notes', {query: {key: '{{notekey}}'}});
+                socket.on('noteupdated', note => {
+                    $('h3#notetitle').empty();
+                    $('h3#notetitle').text(note.title);
+                    $('#navbartitle').empty(); //这里需要在 header.hbs 中添加 id 值。
+                    $('#navbartitle').text(note.title);
+                    $('notebody').empty();
+                    $('notebody').text(note.body);
+                });
+                socket.on('notedestroyed', key => {
+                    window.location.href="/";
+                });
+
+                //add event handler
+                {{#if user}}
+                    /**
+                     * 这个是监听消息提交按钮的 click 事件的，当 click 事件发生时，socketio 客户端
+                     * 会发送一个 create-message 事件给 server，然后server 监听到这个事件，将 message
+                     * 通过调用 postMessage 方法保存到数据库中，触发 sequelize 的 afterCreate 方法，
+                     * 发送一个 newmessage 事件给 note.mjs init() 方法，note.mjs 接收到事件后，再次
+                     * 将 newmessage 事件发送给浏览器 socketio 客户端。所以除了这个方法，我们还需要再写一个
+                     * socket.on('newmessage') 监听器。
+                     *
+                     * 另外一个注意的：这里的 socket.emit() 方法有第三个参数，是一个回调函数，这个回调函数
+                     * 是在 server side 被调用
+                     */
+                    $('#submitNewComment').on('click', function(event) {
+                        socket.emit('create-message', {
+                            from: $('#comment-from').val(),
+                            namespace: $('#comment-namesapce').val(),
+                            room: $('#comment-room').val(),
+                            key: $('#comment-key').val(),
+                            message: $('#noteCommentTextArea').val()
+                        },
+                        response => {
+                            $('#notes-comment-modal').modal('hide');
+                            $('#noteCommentTextArea').empty();
+                        });
+                    });
+                {{/if}}
+
+                //newmessage event handler
+                /**
+                 * 这里是客户端监听 newmessage 事件，当事件接收的时候，就将一段 HTML 插入到 id=noteMessages
+                 * 的 html 片段前面，实现页面的实时更新。
+                 *
+                 * 这里插入 html 片段的方法：
+                 * 这是个老方法，新的ES6引入的反引号是一个新的方法，可以直接在字符串中插入变量。
+                 * 我们这里使用老方法，使用一个数组，然后使用换行符将数组中的所有元素整合起来。那
+                 * 么如果使用 replace 方法将字符串替换为响应的变量，怎么做呢？我们发现 id 值的替换出现了两次。
+                 * 所以为了将所有的都替换为变量值，就需要使用正则表达式 /pattern/g 加一个 global flag。
+                 */
+                socket.on('newmessage', newmsg => {
+                    let msgtxt = [
+                        '<div id="note-message-%id%" class="card">',
+                                '<div class="card-body">',
+                                    '<h5 class="card-title">%from%</h5>',
+                                    '<div class="card-text">%message%',
+                                        '<small style="display: block">%timestamp%</small>',
+                                    '</div>',
+                                    '<button type="button" class="btn btn-primary message-del-button" ' +
+                                    'data-id="%id%" data-namespace="%namespace%" data-room="%room%">Delete</button>',
+                                '</div>',
+                        '</div>'
+                    ].join('\n')
+                    .replace(/%id%/g, newmsg.id)
+                    .replace(/%from%/g, newmsg.from)
+                    .replace(/%namespace%/g, newmsg.namespace)
+                    .replace(/%room%/g, newmsg.room)
+                    .replace(/%message%/g, newmsg.message)
+                    .replace(/%timestamp%/g, newmsg.timestamp);
+                    $('#noteMessages').prepend(msgtxt);
+                });
+
+                /**
+                 * 上面的方法实现了创建新的 message 时候，页面实时的更新。在上面的代码中，有 message-del-button
+                 * 这个按钮，是实现删除消息。
+                 */
+                $('button.message-del-button').on('click', function(event) {
+                    socket.emit('delete-message', {
+                        id: $(event.target).data('id'),
+                        namespace: $(event.target).data('namespace'),
+                        room: $(event.target).data('room')
+                    });
+                });
+
+                /**
+                 * 这里的 data 的传输过程：删除数据，sequelize hooks 函数发送事件和数据data，note.mjs 接收
+                 * 事件和data,然后再将事件和data发送给客户端，客户端接收事件和data。
+                 * 这里的 $('#note-message' + data.id) 选定响应的消息 div，然后将 div 中的内容移除。
+                 */
+                socket.on('destroymessage', data=>{
+                    $('#note-message-' + data.id).remove();
+                });
+            }
+        );
+    </script>
+{{/if}}
+
+{{#if notekey}}
+    {{#if user}}
+        <div class="modal fade" id="notes-comment-modal" tabindex="-1"
+                role="dialog" aria-labelledby="noteCommentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="noteCommentModalLabel">Leave a Comment</h5>
+                        <button type="button" class="close" data-dismiss="modal"
+                                aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="submit-comment">
+                            <input id="comment-from" type="hidden"
+                                   name="from" value="{{user.username}}">
+                            <input id="comment-namesapce" type="hidden"
+                                   name="namespace" value="/notes">
+                            <input id="comment-room" type="hidden"
+                                   name="room" value="{{notekey}}">
+                            <input id="comment-key" type="hidden"
+                                   name="key" value="{{notekey}}">
+                            <fieldset>
+                                <div class="form-group">
+                                    <label for="noteCommentTextArea">Your Excellent Thoughts</label>
+                                    <textarea id="noteCommentTextArea" name="message"
+                                                class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <button id="submitNewComment" type="submit"
+                                            class="btn btn-primary col-sm-offset-2 col-sm-10">
+                                        Make Comment
+                                    </button>
+                                </div>
+                            </fieldset>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {{/if}}
+{{/if}}

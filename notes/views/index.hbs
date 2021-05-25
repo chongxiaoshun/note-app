@@ -1,0 +1,35 @@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 btn-group-vertical" id="notetitles" role="group">
+            {{#each notelist}}
+            <a class="btn btn-lg btn-block btn-outline-dark" href="/notes/view?key={{key}}">{{title}}</a>
+            {{/each}}
+        </div>
+    </div>
+</div>
+{{> footerjs}}
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    $(document).ready(function() {
+        //这里的 socket 对象是用来发送消息或者从服务器接收消息。客户端将 socket 对象与 /home 命名空间相连接。
+        let socket = io('/home');
+        socket.on('connect', socket => {
+            console.log('socketio connection on /home');
+        });
+        //socket 对象监听 notetitles 事件，这个事件是从服务器发来的。
+        socket.on('notetitles', function(data) {
+            let notelist = data.notelist;
+            //这个是 jQuery 的用法，上面的 div id 是 notetitles, 首先先清空这个 div 的内容。
+            //对 notelist 内容进行遍历，每一个都使用 Bootstrap 的 btn 显示出来。
+            $('#notetitles').empty();
+            for (let i = 0; i < notelist.length; i++) {
+                notedata = notelist[i];
+                $('#notetitles')
+                .append('<a class="btn btn-lg btn-block btn-outline-dark"' +
+                        'href="/notes/view?key=' + notedata.key + '">' +
+                        notedata.title + '</a>');
+            }
+        });
+    });
+</script>

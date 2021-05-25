@@ -1,0 +1,27 @@
+{
+  "name": "users",
+  "version": "1.0.0",
+  "description": "the second part of nodejs example",
+  "main": "user-server.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "cross-env DEBUG=users:* PORT=5858 SEQUELIZE_CONNECT=users-sequelize-mysql.yaml REST_LISTEN=0.0.0.0 node ./user-server.mjs",
+    "docker-build": "docker build -t svc-userauth ."
+  },
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "commander": "^7.2.0",
+    "cross-env": "^7.0.3",
+    "debug": "^4.3.1",
+    "fs-extra": "^9.1.0",
+    "js-yaml": "^4.1.0",
+    "mysql2": "^2.2.5",
+    "restify": "^8.5.1",
+    "restify-clients": "^4.0.0",
+    "sequelize": "^6.6.2",
+    "sqlite3": "^5.0.2",
+    "superagent": "^6.1.0"
+  },
+  "author": "liuchongshun",
+  "license": "ISC"
+}

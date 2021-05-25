@@ -1,0 +1,21 @@
+{
+    "name": "frontnet",
+    "version": "1.0.0",
+    "description": "scripts to define and manage FrontNet",
+    "scripts": {
+        "build-frontnet": "docker network create --driver bridge frontnet",
+        "connet-userauth": "docker network connect frontnet svc-userauth",
+        "prebuild-db-notes": "mkdir notes-data",
+        "build-db-notes": "docker run --detach --name db-notes --env MYSQL_USER=notes --env MYSQL_PASSWORD=notes12345 --env MYSQL_DATABASE=notes --mount type=bind,src=C:/Users/lcs/Documents/root_backup1/programming/node/nodejs-web-development/node_js_full_chapter/node-web-dev/chapter_11/frontnet/notes-data,dst=/var/lib/mysql --network frontnet --env MYSQL_ROOT_PASSWORD=w0rdw0rd mysql/mysql-server:8.0 --bind_address=0.0.0.0 --socket=/tmp/mysql.sock",
+        "stop-db-notes": "docker stop db-notes",
+        "start-db-notes": "docker start db-notes",
+        "build-notes": "cd ../notes && npm run docker-build",
+        "postbuild-notes": "npm run launch-notes",
+        "lanch-notes": "docker run --detach --name svc-notes --network frontnet -p 80:3000 svc-notes",
+        "start-notes": "docker start svc-notes",
+        "stop-notes": "docker stop svc-notes",
+        "start-notes-service": "npm run start-db-notes && npm run start-notes",
+        "stop-notes-service": "npm run stop-db-notes && npm run stop-notes"
+    },
+    "license": "ISC"
+}

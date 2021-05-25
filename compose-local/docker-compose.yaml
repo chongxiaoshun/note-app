@@ -1,0 +1,121 @@
+version: "3"
+# version 3 compose file
+# three major sections: services, volumes, networks
+# services describes the containers being used.
+# network section describe networks
+# volumes section describe the volumes
+
+services: 
+    # 首先创建 mysql-server 的容器，这个就相当于 cli 的书写方式：docker run --detach --name db-userauth --env ### --bind-address ### --socket ### mysql/mysql-server:8.0 
+    db-userauth:
+        # 这里不同于 svc-userauth, svc-userauth 是从本地创建 image，所以有 build 属性，而这里是 image，是从 docker hub 中下载的 image 文件。
+        image: "mysql/mysql-server:8.0"
+        container_name: db-userauth
+        command: [
+            "mysqld",
+            "--character-set-server=utf8mb4",
+            "--collation-server=utf8mb4_unicode_ci",
+            "--bind-address=0.0.0.0",
+            "--socket=/tmp/mysql.socket"
+        ]
+        expose: 
+            - "3306"
+        networks:
+            - authnet
+        volumes:
+            - db-userauth-data:/var/lib/mysql
+        restart: always
+        environment: 
+            MYSQL_ROOT_PASSWORD: "w0rdw0rd"
+            MYSQL_USER: userauth
+            MYSQL_PASSWORD: userauth
+            MYSQL_DATABASE: userauth
+
+    svc-userauth:
+        # build 是 context 的路径，context 中存放这 Dokerfile。创建 image 需要Dokerfile 以及 context。
+        build: ../users
+        container_name: svc-userauth
+        # 这里的 depends_on 就是决定了 container 启动的顺序，这里首先启动 db-userauth container 然后启动 svc-userauth container.
+        depends_on: 
+            - db-userauth
+        networks: 
+            - authnet
+            - svcnet
+        # DO NOT EXPOSE THIS PORT ON PRODUCTION
+        # 原则上，因为 userauth 存放的是用户的重要个人信息，所以是不可以向外界创建端口号，也就是使用 -p 或者在 compose 文件中添加 port 属性，使用这两种方法可以想外界 publish 端口号，外界可以使用这个端口号去和 userauth 服务产生通信。安全的做法是，不向外界 publish userauth 的端口号，但是在 userauth Dockerfile 中有 expose 端口号，这个端口号只能够在同一个 bridge network 上的服务参能都进行通信。这样做是最安全的。
+        ports: 
+            - "5858:5858"
+        restart: always
+    
+    db-notes: 
+        image: "mysql/mysql-server:8.0"
+        container_name: db-notes
+        command: [
+            "mysqld",
+            "--character-set-server=utf8mb4",
+            "--collation-server=utf8mb4_unicode_ci",
+            "--bind-address=0.0.0.0",
+            "--socket=/tmp/mysql.sock"
+        ]
+        expose: 
+            - "3306"
+        networks: 
+            - frontnet
+        volumes: 
+            - db-notes-data:/var/lib/mysql
+        restart: always
+        environment: 
+            MYSQL_ROOT_PASSWORD: "w0rdw0rd"
+            MYSQL_USER: notes
+            MYSQL_PASSWORD: notes12345
+            MYSQL_DATABASE: notes
+    
+    svc-notes: 
+        build: ../notes
+        container_name: svc-notes
+        depends_on: 
+            - db-notes
+        networks: 
+            - frontnet
+            - svcnet
+        # 这里的 port 就是 svc-notes 与外界通信使用的端口。这里就相当于 cli 中的 -p 选项，就是 publish 的意思，第一个端口号是向外界 publish 的端口号，第二个是映射的 container 的端口号。doker-host-port:container-port
+        ports:
+            - "3000:3000"
+        restart: always    
+        environment: 
+            REDIS_ENDPOINT: "redis"
+    
+    svc-notes-2: 
+        build: ../notes
+        container_name: svc-notes-2
+        depends_on: 
+            - db-notes
+        networks: 
+            - frontnet
+            - svcnet
+        # 这里的 port 就是 svc-notes 与外界通信使用的端口里就相当于 cli 中的 -p 选项，就是 publish 的意思，个端口号是向外界 publish 的端口号，第二个是映射container 的端口号。doker-host-port:container-port
+        ports:
+            - "3020:3020"
+        restart: always
+        environment: 
+            # 注意这里的环境变量将 Dockerfile 中的 ENV 覆盖。
+            PORT: "3020"
+            REDIS_ENDPOINT: "redis"
+
+    redis: 
+        image: "redis:5.0"
+        networks: 
+            - frontnet
+        container_name: redis
+
+networks:
+    frontnet: 
+        driver: bridge
+    authnet: 
+        driver: bridge
+    svcnet:
+        driver: bridge
+
+volumes:
+    db-userauth-data:
+    db-notes-data:    

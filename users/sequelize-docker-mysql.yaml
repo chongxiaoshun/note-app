@@ -1,0 +1,6 @@
+dbname: userauth
+username: userauth
+password: userauth
+host: db-userauth
+port: 3306
+dialect: mysql

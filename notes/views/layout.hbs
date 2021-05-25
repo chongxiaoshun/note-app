@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>{{title}}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="/assets/stylesheets/style.css" />
+</head>
+
+<body>
+  {{> header}}
+  {{!-- 注意这里是三个花括号，这个body就是把 index 之类地页面嵌入进来地地方，千万不要忽略导致页面显示不出来。 --}}
+  {{{body}}}
+  <!--注意这里，本来这里是加载所有页面需要的 js 脚本，但是对于 Socket.io clients 来说，
+  需要使用 jQuery 来操纵 DOM,所以 Socket.io client 必须要在 jQuery 之后加载，但是如果
+  所有的脚本使用 layout 加载，那么就是 body 中的 client 首先加载。-->
+  <!--JQurey first, then Popper.js, then Bootstrap.js-->
+<!--  <script src="/assets/vendor/jquery/jquery.min.js"></script>-->
+<!--  <script src="/assets/vendor/popper.js/popper.min.js"></script>-->
+<!--  <script src="/assets/vendor/bootstrap/js/bootstrap.min.js"></script>-->
+<!--  <script src="/assets/vendor/feather-icons/feather.js"></script>-->
+<!--  <script>-->
+<!--    feather.replace();-->
+<!--  </script>-->
+</body>
+</html>
